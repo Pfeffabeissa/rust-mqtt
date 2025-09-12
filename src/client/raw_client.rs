@@ -7,7 +7,7 @@ use crate::{
     encoding::variable_byte_integer::{VariableByteInteger, VariableByteIntegerDecoder},
     network::NetworkConnection,
     packet::v5::{
-        connack_packet::ConnackPacket,
+        connack_packet::{ConnackFlag, ConnackPacket},
         connect_packet::ConnectPacket,
         disconnect_packet::DisconnectPacket,
         mqtt_packet::Packet,
@@ -28,7 +28,7 @@ use crate::{
 use super::client_config::{ClientConfig, MqttVersion};
 
 pub enum Event<'a> {
-    Connack,
+    Connack(ConnackFlag),
     Puback(u16),
     Suback(u16),
     Unsuback(u16),
@@ -351,7 +351,7 @@ where
                 } else if packet.connect_reason_code != 0x00 {
                     Err(ReasonCode::from(packet.connect_reason_code))
                 } else {
-                    Ok(Event::Connack)
+                    Ok(Event::Connack(packet.flags()))
                 }
             }
             PacketType::Puback => {

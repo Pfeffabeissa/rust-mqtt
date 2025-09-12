@@ -72,7 +72,7 @@ async fn publish_core<'b>(
         "[Publisher] Connection to broker with username {} and password {}",
         USERNAME, PASSWORD
     );
-    let mut result = { client.connect_to_broker().await };
+    let result = { client.connect_to_broker().await };
     assert_ok!(result);
     info!("[Publisher] Waiting {} seconds before sending", wait);
     sleep(Duration::from_secs(wait)).await;
@@ -81,7 +81,7 @@ async fn publish_core<'b>(
         "[Publisher] Sending new message {} to topic {}",
         message, topic
     );
-    result = client
+    let result = client
         .send_message(topic, message.as_bytes(), qos, false)
         .await;
     info!("[PUBLISHER] sent");
@@ -92,7 +92,7 @@ async fn publish_core<'b>(
     }
 
     info!("[Publisher] Disconnecting!");
-    result = client.disconnect().await;
+    let result = client.disconnect().await;
 
     assert_ok!(result);
     Ok(())
@@ -164,11 +164,11 @@ async fn receive_core<'b>(
         "[Receiver] Connection to broker with username {} and password {}",
         USERNAME, PASSWORD
     );
-    let mut result = client.connect_to_broker().await;
+    let result = client.connect_to_broker().await;
     assert_ok!(result);
 
     info!("[Receiver] Subscribing to topic {}", topic);
-    result = client.subscribe_to_topic(topic).await;
+    let result = client.subscribe_to_topic(topic).await;
     assert_ok!(result);
     info!("[Receiver] Waiting for new message!");
     let msg = client.receive_message().await;
@@ -178,7 +178,7 @@ async fn receive_core<'b>(
     assert_eq!(act_message, MSG);
 
     info!("[Receiver] Disconnecting");
-    result = client.disconnect().await;
+    let result = client.disconnect().await;
 
     assert_ok!(result);
     Ok(())
@@ -192,7 +192,7 @@ async fn receive_core_multiple<'b, const TOPICS: usize>(
         "[Receiver] Connection to broker with username {} and password {}",
         USERNAME, PASSWORD
     );
-    let mut result = client.connect_to_broker().await;
+    let result = client.connect_to_broker().await;
     assert_ok!(result);
 
     info!(
@@ -200,7 +200,7 @@ async fn receive_core_multiple<'b, const TOPICS: usize>(
         topic_names.get(0).unwrap(),
         topic_names.get(1).unwrap()
     );
-    result = client.subscribe_to_topics(topic_names).await;
+    let result = client.subscribe_to_topics(topic_names).await;
 
     assert_ok!(result);
     info!("[Receiver] Waiting for new message!");
@@ -219,7 +219,7 @@ async fn receive_core_multiple<'b, const TOPICS: usize>(
         assert_eq!(act_message_second, MSG);
     }
     info!("[Receiver] Disconnecting");
-    result = client.disconnect().await;
+    let result = client.disconnect().await;
 
     assert_ok!(result);
     Ok(())
@@ -341,7 +341,7 @@ async fn receive_multiple_second_unsub<const TOPICS: usize>(
         "[Receiver] Connection to broker with username {} and password {}",
         USERNAME, PASSWORD
     );
-    let mut result = { client.connect_to_broker().await };
+    let result = { client.connect_to_broker().await };
     assert_ok!(result);
 
     info!(
@@ -349,7 +349,7 @@ async fn receive_multiple_second_unsub<const TOPICS: usize>(
         topic_names.get(0).unwrap(),
         topic_names.get(1).unwrap()
     );
-    result = client.subscribe_to_topics(topic_names).await;
+    let result = client.subscribe_to_topics(topic_names).await;
 
     assert_ok!(result);
     info!("[Receiver] Waiting for new message!");
@@ -387,7 +387,7 @@ async fn receive_multiple_second_unsub<const TOPICS: usize>(
     assert_err!(res);
 
     info!("[Receiver] Disconnecting");
-    result = client.disconnect().await;
+    let result = client.disconnect().await;
 
     assert_ok!(result);
     Ok(())

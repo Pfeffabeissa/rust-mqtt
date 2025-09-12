@@ -28,6 +28,7 @@ use heapless::Vec;
 use rand_core::RngCore;
 
 use crate::client::client_config::ClientConfig;
+use crate::packet::v5::connack_packet::ConnackFlag;
 use crate::packet::v5::publish_packet::QualityOfService::{self, QoS1};
 use crate::packet::v5::reason_codes::ReasonCode;
 
@@ -67,11 +68,11 @@ where
     /// in the `ClientConfig`. Method selects proper implementation of the MQTT version based on the config.
     /// If the connection to the broker fails, method returns Err variable that contains
     /// Reason codes returned from the broker.
-    pub async fn connect_to_broker<'b>(&'b mut self) -> Result<(), ReasonCode> {
+    pub async fn connect_to_broker<'b>(&'b mut self) -> Result<ConnackFlag, ReasonCode> {
         self.raw.connect_to_broker().await?;
 
         match self.raw.poll::<0>().await? {
-            Event::Connack => Ok(()),
+            Event::Connack(connect_flags) => Ok(connect_flags.into()),
             Event::Disconnect(reason) => Err(reason),
             // If an application message comes at this moment, it is lost.
             _ => Err(ReasonCode::ImplementationSpecificError),

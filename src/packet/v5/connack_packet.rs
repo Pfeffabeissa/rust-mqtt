@@ -42,7 +42,11 @@ pub struct ConnackPacket<'a, const MAX_PROPERTIES: usize> {
     pub properties: Vec<Property<'a>, MAX_PROPERTIES>,
 }
 
-impl<'a, const MAX_PROPERTIES: usize> ConnackPacket<'a, MAX_PROPERTIES> {}
+impl<'a, const MAX_PROPERTIES: usize> ConnackPacket<'a, MAX_PROPERTIES> {
+    pub fn flags(&self) -> ConnackFlag {
+        self.ack_flags.into()
+    }
+}
 
 impl<'a, const MAX_PROPERTIES: usize> Packet<'a> for ConnackPacket<'a, MAX_PROPERTIES> {
     fn new() -> Self {
@@ -103,5 +107,23 @@ impl<'a, const MAX_PROPERTIES: usize> Packet<'a> for ConnackPacket<'a, MAX_PROPE
 
     fn set_remaining_len(&mut self, remaining_len: u32) {
         self.remain_len = remaining_len;
+    }
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum ConnackFlag {
+    SessionPresent,
+    NoSessionPresent,
+}
+
+impl From<u8> for ConnackFlag {
+    fn from(value: u8) -> Self {
+        let session_present = value & 0x01 != 0;
+        if session_present {
+            Self::SessionPresent
+        } else {
+            Self::NoSessionPresent
+        }
     }
 }
