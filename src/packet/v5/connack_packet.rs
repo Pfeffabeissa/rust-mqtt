@@ -36,16 +36,10 @@ use super::property::Property;
 pub struct ConnackPacket<'a, const MAX_PROPERTIES: usize> {
     pub fixed_header: u8,
     pub remain_len: u32,
-    pub ack_flags: u8,
+    pub connect_ack_flags: u8,
     pub connect_reason_code: u8,
     pub property_len: u32,
     pub properties: Vec<Property<'a>, MAX_PROPERTIES>,
-}
-
-impl<'a, const MAX_PROPERTIES: usize> ConnackPacket<'a, MAX_PROPERTIES> {
-    pub fn flags(&self) -> ConnackFlag {
-        self.ack_flags.into()
-    }
 }
 
 impl<'a, const MAX_PROPERTIES: usize> Packet<'a> for ConnackPacket<'a, MAX_PROPERTIES> {
@@ -53,7 +47,7 @@ impl<'a, const MAX_PROPERTIES: usize> Packet<'a> for ConnackPacket<'a, MAX_PROPE
         Self {
             fixed_header: PacketType::Connack.into(),
             remain_len: 0,
-            ack_flags: 0,
+            connect_ack_flags: 0,
             connect_reason_code: 0,
             property_len: 0,
             properties: Vec::<Property<'a>, MAX_PROPERTIES>::new(),
@@ -68,7 +62,7 @@ impl<'a, const MAX_PROPERTIES: usize> Packet<'a> for ConnackPacket<'a, MAX_PROPE
 
         let rm_len: u32 = 2 + self.property_len + property_len_len as u32;
         buff_writer.write_variable_byte_int(rm_len)?;
-        buff_writer.write_u8(self.ack_flags)?;
+        buff_writer.write_u8(self.connect_ack_flags)?;
         buff_writer.write_u8(self.connect_reason_code)?;
         buff_writer.write_variable_byte_int(self.property_len)?;
         buff_writer.write_properties(&self.properties)?;
@@ -80,7 +74,7 @@ impl<'a, const MAX_PROPERTIES: usize> Packet<'a> for ConnackPacket<'a, MAX_PROPE
             error!("Packet you are trying to decode is not CONNACK packet!");
             return Err(BufferError::PacketTypeMismatch);
         }
-        self.ack_flags = buff_reader.read_u8()?;
+        self.connect_ack_flags = buff_reader.read_u8()?;
         self.connect_reason_code = buff_reader.read_u8()?;
         self.decode_properties(buff_reader)
     }
@@ -110,20 +104,14 @@ impl<'a, const MAX_PROPERTIES: usize> Packet<'a> for ConnackPacket<'a, MAX_PROPE
     }
 }
 
-#[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum ConnackFlag {
-    SessionPresent,
-    NoSessionPresent,
+#[derive(Debug)]
+pub struct ConnectAckFlags {
+    pub session_present: bool,
 }
 
-impl From<u8> for ConnackFlag {
+impl From<u8> for ConnectAckFlags {
     fn from(value: u8) -> Self {
         let session_present = value & 0x01 != 0;
-        if session_present {
-            Self::SessionPresent
-        } else {
-            Self::NoSessionPresent
-        }
+        Self { session_present }
     }
 }

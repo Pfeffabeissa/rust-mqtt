@@ -27,6 +27,7 @@ use heapless::Vec;
 use crate::encoding::variable_byte_integer::VariableByteIntegerEncoder;
 use crate::packet::v5::mqtt_packet::Packet;
 use crate::packet::v5::packet_type::PacketType;
+use crate::packet::v5::subscription_packet::SubOptions;
 use crate::utils::buffer_reader::BuffReader;
 use crate::utils::buffer_writer::BuffWriter;
 use crate::utils::types::{BufferError, TopicFilter};
@@ -46,12 +47,12 @@ pub struct UnsubscriptionPacket<'a, const MAX_FILTERS: usize, const MAX_PROPERTI
 impl<'a, const MAX_FILTERS: usize, const MAX_PROPERTIES: usize>
     UnsubscriptionPacket<'a, MAX_FILTERS, MAX_PROPERTIES>
 {
-    pub fn add_new_filter(&mut self, topic_name: &'a str) {
+    pub fn add_new_filter(&mut self, topic_name: &'a str, options: SubOptions) {
         let len = topic_name.len();
         let mut new_filter = TopicFilter::new();
         new_filter.filter.string = topic_name;
         new_filter.filter.len = len as u16;
-        new_filter.sub_options |= 0x01;
+        new_filter.sub_options = options;
         self.topic_filters.push(new_filter);
         self.topic_filter_len += 1;
     }

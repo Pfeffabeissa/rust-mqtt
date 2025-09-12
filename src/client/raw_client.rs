@@ -1,3 +1,5 @@
+use core::cmp::max;
+
 use embedded_io::ReadReady;
 use embedded_io_async::{Read, Write};
 use heapless::Vec;
@@ -7,7 +9,7 @@ use crate::{
     encoding::variable_byte_integer::{VariableByteInteger, VariableByteIntegerDecoder},
     network::NetworkConnection,
     packet::v5::{
-        connack_packet::{ConnackFlag, ConnackPacket},
+        connack_packet::ConnackPacket,
         connect_packet::ConnectPacket,
         disconnect_packet::DisconnectPacket,
         mqtt_packet::Packet,
@@ -18,7 +20,7 @@ use crate::{
         publish_packet::{PublishPacket, QualityOfService},
         reason_codes::ReasonCode,
         suback_packet::SubackPacket,
-        subscription_packet::SubscriptionPacket,
+        subscription_packet::{SubOptions, SubscriptionPacket},
         unsuback_packet::UnsubackPacket,
         unsubscription_packet::UnsubscriptionPacket,
     },
@@ -28,7 +30,7 @@ use crate::{
 use super::client_config::{ClientConfig, MqttVersion};
 
 pub enum Event<'a> {
-    Connack(ConnackFlag),
+    Connack(u8),
     Puback(u16),
     Suback(u16),
     Unsuback(u16),
@@ -205,7 +207,7 @@ where
 
     async fn subscribe_to_topics_v5<'b, const TOPICS: usize>(
         &'b mut self,
-        topic_names: &'b Vec<&'b str, TOPICS>,
+        topic_names: &'b Vec<(&'b str, SubOptions), TOPICS>,
     ) -> Result<u16, ReasonCode> {
         if self.connection.is_none() {
             return Err(ReasonCode::NetworkError);
@@ -215,8 +217,9 @@ where
         let len = {
             let mut subs = SubscriptionPacket::<'b, TOPICS, MAX_PROPERTIES>::new();
             subs.packet_identifier = identifier;
-            for topic_name in topic_names.iter() {
-                subs.add_new_filter(topic_name, self.config.max_subscribe_qos);
+            for (topic_name, options) in topic_names.iter() {
+                let qos = max(options.qos(), self.config.max_subscribe_qos);
+                subs.add_new_filter(topic_name, options.set_qos(qos));
             }
             subs.encode(self.buffer, self.buffer_len)
         };
@@ -237,7 +240,7 @@ where
     /// is selected automatically.
     pub async fn subscribe_to_topics<'b, const TOPICS: usize>(
         &'b mut self,
-        topic_names: &'b Vec<&'b str, TOPICS>,
+        topic_names: &'b Vec<(&'b str, SubOptions), TOPICS>,
     ) -> Result<u16, ReasonCode> {
         match self.config.mqtt_version {
             MqttVersion::MQTTv3 => Err(ReasonCode::UnsupportedProtocolVersion),
@@ -271,7 +274,7 @@ where
         let len = {
             let mut unsub = UnsubscriptionPacket::<'b, 1, MAX_PROPERTIES>::new();
             unsub.packet_identifier = identifier;
-            unsub.add_new_filter(topic_name);
+            unsub.add_new_filter(topic_name, SubOptions::default());
             unsub.encode(self.buffer, self.buffer_len)
         };
 
@@ -351,7 +354,7 @@ where
                 } else if packet.connect_reason_code != 0x00 {
                     Err(ReasonCode::from(packet.connect_reason_code))
                 } else {
-                    Ok(Event::Connack(packet.flags()))
+                    Ok(Event::Connack(packet.connect_ack_flags))
                 }
             }
             PacketType::Puback => {

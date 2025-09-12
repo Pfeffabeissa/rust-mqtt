@@ -26,6 +26,7 @@ use heapless::Vec;
 
 use crate::encoding::variable_byte_integer::{VariableByteInteger, VariableByteIntegerEncoder};
 use crate::packet::v5::property::Property;
+use crate::packet::v5::subscription_packet::SubOptions;
 use crate::utils::types::{BinaryData, BufferError, EncodedString, StringPair, TopicFilter};
 
 #[derive(Debug, Clone, Copy)]
@@ -173,7 +174,8 @@ impl<'a> BuffWriter<'a> {
     ) -> Result<(), BufferError> {
         self.write_string_ref(&topic_filter.filter)?;
         if sub {
-            self.write_u8(topic_filter.sub_options)?;
+            let sub_options = <SubOptions as Into<u8>>::into(topic_filter.sub_options);
+            self.write_u8(sub_options)?;
         }
         Ok(())
     }

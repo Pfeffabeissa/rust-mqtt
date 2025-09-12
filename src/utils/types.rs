@@ -24,6 +24,8 @@
 
 use core::fmt::{Display, Formatter};
 
+use crate::packet::v5::subscription_packet::SubOptions;
+
 #[derive(core::fmt::Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum BufferError {
@@ -114,14 +116,14 @@ impl StringPair<'_> {
 #[derive(Debug, Default)]
 pub struct TopicFilter<'a> {
     pub filter: EncodedString<'a>,
-    pub sub_options: u8,
+    pub sub_options: SubOptions,
 }
 
 impl TopicFilter<'_> {
     pub fn new() -> Self {
         Self {
             filter: EncodedString::new(),
-            sub_options: 0,
+            sub_options: SubOptions::new(),
         }
     }
 
