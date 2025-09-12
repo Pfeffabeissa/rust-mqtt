@@ -48,18 +48,16 @@ where
     pub fn new(
         network_driver: T,
         buffer: &'a mut [u8],
-        buffer_len: usize,
         recv_buffer: &'a mut [u8],
-        recv_buffer_len: usize,
         config: ClientConfig<'a, MAX_PROPERTIES, R>,
     ) -> Self {
         Self {
             raw: RawMqttClient::new(
                 network_driver,
                 buffer,
-                buffer_len,
+                buffer.len(),
                 recv_buffer,
-                recv_buffer_len,
+                recv_buffer.len(),
                 config,
             ),
         }

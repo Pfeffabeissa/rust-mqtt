@@ -296,7 +296,7 @@ impl<'a> Property<'a> {
 
     pub fn decode(buff_reader: &mut BuffReader<'a>) -> Result<Property<'a>, BufferError> {
         let property_identifier = buff_reader.read_u8();
-        return match property_identifier {
+        match property_identifier {
             Ok(0x01) => Ok(Property::PayloadFormat(buff_reader.read_u8()?)),
             Ok(0x02) => Ok(Property::MessageExpiryInterval(buff_reader.read_u32()?)),
             Ok(0x03) => Ok(Property::ContentType(buff_reader.read_string()?)),
@@ -336,7 +336,7 @@ impl<'a> Property<'a> {
             )),
             Err(err) => Err(err),
             _ => Err(BufferError::IdNotFound),
-        };
+        }
     }
 }
 
