@@ -36,7 +36,7 @@ fn test_encode() {
     let prop = Property::ReceiveMaximum(21);
     connack.properties.push(prop);
     connack.connect_reason_code = ReasonCode::ServerMoved.into();
-    connack.ack_flags = 0x45;
+    connack.connect_ack_flags = 0x45;
 
     let res = connack.encode(&mut buffer, 100);
     assert!(res.is_ok());
@@ -57,7 +57,7 @@ fn test_encode() {
 
 #[test]
 fn test_decode() {
-    let mut buffer: [u8; 8] = [
+    let buffer: [u8; 8] = [
         0x20,
         0x06,
         0x45,
@@ -72,7 +72,7 @@ fn test_decode() {
 
     assert!(res.is_ok());
     assert_eq!(connack_res.property_len, 3);
-    assert_eq!(connack_res.ack_flags, 0x45);
+    assert_eq!(connack_res.connect_ack_flags, 0x45);
     assert_eq!(
         connack_res.connect_reason_code,
         ReasonCode::ServerMoved.into()

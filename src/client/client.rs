@@ -28,8 +28,10 @@ use heapless::Vec;
 use rand_core::RngCore;
 
 use crate::client::client_config::ClientConfig;
+use crate::packet::v5::connack_packet::ConnectAckFlags;
 use crate::packet::v5::publish_packet::QualityOfService::{self, QoS1};
 use crate::packet::v5::reason_codes::ReasonCode;
+use crate::packet::v5::subscription_packet::SubOptions;
 
 use super::raw_client::{Event, RawMqttClient};
 
@@ -48,18 +50,16 @@ where
     pub fn new(
         network_driver: T,
         buffer: &'a mut [u8],
-        buffer_len: usize,
         recv_buffer: &'a mut [u8],
-        recv_buffer_len: usize,
         config: ClientConfig<'a, MAX_PROPERTIES, R>,
     ) -> Self {
         Self {
             raw: RawMqttClient::new(
                 network_driver,
                 buffer,
-                buffer_len,
+                buffer.len(),
                 recv_buffer,
-                recv_buffer_len,
+                recv_buffer.len(),
                 config,
             ),
         }
@@ -69,11 +69,11 @@ where
     /// in the `ClientConfig`. Method selects proper implementation of the MQTT version based on the config.
     /// If the connection to the broker fails, method returns Err variable that contains
     /// Reason codes returned from the broker.
-    pub async fn connect_to_broker<'b>(&'b mut self) -> Result<(), ReasonCode> {
+    pub async fn connect_to_broker<'b>(&'b mut self) -> Result<ConnectAckFlags, ReasonCode> {
         self.raw.connect_to_broker().await?;
 
         match self.raw.poll::<0>().await? {
-            Event::Connack => Ok(()),
+            Event::Connack(connect_flags) => Ok(connect_flags.into()),
             Event::Disconnect(reason) => Err(reason),
             // If an application message comes at this moment, it is lost.
             _ => Err(ReasonCode::ImplementationSpecificError),
@@ -132,7 +132,7 @@ where
     /// is selected automatically.
     pub async fn subscribe_to_topics<'b, const TOPICS: usize>(
         &'b mut self,
-        topic_names: &'b Vec<&'b str, TOPICS>,
+        topic_names: &'b Vec<(&'b str, SubOptions), TOPICS>,
     ) -> Result<(), ReasonCode> {
         let identifier = self.raw.subscribe_to_topics(topic_names).await?;
 
@@ -179,9 +179,10 @@ where
     pub async fn subscribe_to_topic<'b>(
         &'b mut self,
         topic_name: &'b str,
+        options: SubOptions,
     ) -> Result<(), ReasonCode> {
-        let mut topic_names = Vec::<&'b str, 1>::new();
-        topic_names.push(topic_name).unwrap();
+        let mut topic_names = Vec::<(&'b str, SubOptions), 1>::new();
+        topic_names.push((topic_name, options)).unwrap();
 
         let identifier = self.raw.subscribe_to_topics(&topic_names).await?;
 

@@ -1,0 +1,9 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    container_name: rust-mqtt-test-broker
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mqtt_pass_hashed.txt:/mosquitto/config/mqtt_pass_hashed.txt:ro

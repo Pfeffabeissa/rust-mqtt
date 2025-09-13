@@ -18,13 +18,13 @@ Client supports following:
 - Packet size is not limited, it is totally up to user (packet size and buffer sizes have to align)
 
 ## Building
-```
+```bash
 cargo build
 ```
 
 ## Running tests
 Integration tests are written using tokio network tcp stack and can be find under tokio_net.
-```
+```bash
 cargo test unit
 cargo test integration
 cargo test load

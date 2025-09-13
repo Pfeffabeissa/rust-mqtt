@@ -12,8 +12,8 @@ repository = "https://github.com/obabec/rust-mqtt"
 
 [dependencies]
 heapless = "0.8"
-rand_core = "0.6"
-defmt = { version = "0.3", optional = true }
+rand_core = "0.9"
+defmt = { version = "1", optional = true }
 log = { version = "0.4", optional = true }
 embedded-io = "0.6"
 embedded-io-async = "0.6"
@@ -24,10 +24,10 @@ embedded-io = "0.6"
 embedded-io-adapters = { version = "0.6", features = ["tokio-1"] }
 embedded-io-async = { version = "0.6" }
 tokio-test = { version = "0.4.2" }
-env_logger = "0.10.1"
-futures = { version = "0.3.21" }
-log = { version = "0.4.14" }
-serial_test = "3.0.0"
+env_logger = "0.11"
+futures = { version = "0.3" }
+log = { version = "0.4" }
+serial_test = "3"
 
 [features]
 default = ["std"]

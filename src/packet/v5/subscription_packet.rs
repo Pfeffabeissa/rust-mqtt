@@ -27,12 +27,80 @@ use heapless::Vec;
 use crate::encoding::variable_byte_integer::VariableByteIntegerEncoder;
 use crate::packet::v5::mqtt_packet::Packet;
 use crate::packet::v5::publish_packet::QualityOfService;
+use crate::packet::v5::subscription_packet::RetainHandling::{Always, Never, NewSubOnly};
 use crate::utils::buffer_reader::BuffReader;
 use crate::utils::buffer_writer::BuffWriter;
 use crate::utils::types::{BufferError, TopicFilter};
 
 use super::packet_type::PacketType;
 use super::property::Property;
+
+#[derive(Clone, Copy, Debug)]
+pub struct SubOptions(u8);
+
+impl Default for SubOptions {
+    fn default() -> Self {
+        Self(0)
+    }
+}
+
+impl SubOptions {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn set_retain_as_published(mut self) -> Self {
+        self.0 |= 0x08;
+        self
+    }
+
+    pub fn set_retain_handling(mut self, retain_handling: RetainHandling) -> Self {
+        self.0 &= !0x30;
+        self.0 |= <RetainHandling as Into<u8>>::into(retain_handling);
+        self
+    }
+
+    pub fn set_no_local(mut self) -> Self {
+        self.0 |= 0x4;
+        self
+    }
+
+    pub fn set_qos(mut self, qos: QualityOfService) -> Self {
+        self.0 &= !0x03;
+        self.0 |= <QualityOfService as Into<u8>>::into(qos) >> 1;
+        self
+    }
+
+    pub fn qos(&self) -> QualityOfService {
+        let qos = (self.0 & 0x03) << 1;
+        <u8 as Into<QualityOfService>>::into(qos)
+    }
+}
+
+impl From<SubOptions> for u8 {
+    fn from(value: SubOptions) -> Self {
+        value.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum RetainHandling {
+    Always,
+    NewSubOnly,
+    Never,
+}
+
+impl From<RetainHandling> for u8 {
+    fn from(value: RetainHandling) -> Self {
+        let value = match value {
+            Always => 0,
+            NewSubOnly => 1,
+            Never => 2,
+        };
+
+        value << 4
+    }
+}
 
 pub struct SubscriptionPacket<'a, const MAX_FILTERS: usize, const MAX_PROPERTIES: usize> {
     pub fixed_header: u8,
@@ -47,12 +115,12 @@ pub struct SubscriptionPacket<'a, const MAX_FILTERS: usize, const MAX_PROPERTIES
 impl<'a, const MAX_FILTERS: usize, const MAX_PROPERTIES: usize>
     SubscriptionPacket<'a, MAX_FILTERS, MAX_PROPERTIES>
 {
-    pub fn add_new_filter(&mut self, topic_name: &'a str, qos: QualityOfService) {
+    pub fn add_new_filter(&mut self, topic_name: &'a str, options: SubOptions) {
         let len = topic_name.len();
         let mut new_filter = TopicFilter::new();
         new_filter.filter.string = topic_name;
         new_filter.filter.len = len as u16;
-        new_filter.sub_options |= <QualityOfService as Into<u8>>::into(qos) >> 1;
+        new_filter.sub_options = options;
         self.topic_filters.push(new_filter);
         self.topic_filter_len += 1;
     }

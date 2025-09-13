@@ -1,3 +1,5 @@
+use core::cmp::max;
+
 use embedded_io::ReadReady;
 use embedded_io_async::{Read, Write};
 use heapless::Vec;
@@ -18,7 +20,7 @@ use crate::{
         publish_packet::{PublishPacket, QualityOfService},
         reason_codes::ReasonCode,
         suback_packet::SubackPacket,
-        subscription_packet::SubscriptionPacket,
+        subscription_packet::{SubOptions, SubscriptionPacket},
         unsuback_packet::UnsubackPacket,
         unsubscription_packet::UnsubscriptionPacket,
     },
@@ -28,7 +30,7 @@ use crate::{
 use super::client_config::{ClientConfig, MqttVersion};
 
 pub enum Event<'a> {
-    Connack,
+    Connack(u8),
     /// event.0 is Packet identifier, event.1 is true if there were matching subscribers, false otherwise
     Puback(u16, bool),
     Suback(u16),
@@ -114,7 +116,7 @@ where
     /// in the `ClientConfig`. Method selects proper implementation of the MQTT version based on the config.
     /// If the connection to the broker fails, method returns Err variable that contains
     /// Reason codes returned from the broker.
-    pub async fn connect_to_broker<'b>(&'b mut self) -> Result<(), ReasonCode> {
+    pub async fn connect_to_broker(&mut self) -> Result<(), ReasonCode> {
         match self.config.mqtt_version {
             MqttVersion::MQTTv3 => Err(ReasonCode::UnsupportedProtocolVersion),
             MqttVersion::MQTTv5 => self.connect_to_broker_v5().await,
@@ -148,7 +150,7 @@ where
     /// in the `ClientConfig`. Method selects proper implementation of the MQTT version based on the config.
     /// If the disconnect from the broker fails, method returns Err variable that contains
     /// Reason codes returned from the broker.
-    pub async fn disconnect<'b>(&'b mut self) -> Result<(), ReasonCode> {
+    pub async fn disconnect(&mut self) -> Result<(), ReasonCode> {
         match self.config.mqtt_version {
             MqttVersion::MQTTv3 => Err(ReasonCode::UnsupportedProtocolVersion),
             MqttVersion::MQTTv5 => self.disconnect_v5().await,
@@ -206,7 +208,7 @@ where
 
     async fn subscribe_to_topics_v5<'b, const TOPICS: usize>(
         &'b mut self,
-        topic_names: &'b Vec<&'b str, TOPICS>,
+        topic_names: &'b Vec<(&'b str, SubOptions), TOPICS>,
     ) -> Result<u16, ReasonCode> {
         if self.connection.is_none() {
             return Err(ReasonCode::NetworkError);
@@ -216,8 +218,9 @@ where
         let len = {
             let mut subs = SubscriptionPacket::<'b, TOPICS, MAX_PROPERTIES>::new();
             subs.packet_identifier = identifier;
-            for topic_name in topic_names.iter() {
-                subs.add_new_filter(topic_name, self.config.max_subscribe_qos);
+            for (topic_name, options) in topic_names.iter() {
+                let qos = max(options.qos(), self.config.max_subscribe_qos);
+                subs.add_new_filter(topic_name, options.set_qos(qos));
             }
             subs.encode(self.buffer, self.buffer_len)
         };
@@ -238,7 +241,7 @@ where
     /// is selected automatically.
     pub async fn subscribe_to_topics<'b, const TOPICS: usize>(
         &'b mut self,
-        topic_names: &'b Vec<&'b str, TOPICS>,
+        topic_names: &'b Vec<(&'b str, SubOptions), TOPICS>,
     ) -> Result<u16, ReasonCode> {
         match self.config.mqtt_version {
             MqttVersion::MQTTv3 => Err(ReasonCode::UnsupportedProtocolVersion),
@@ -272,7 +275,7 @@ where
         let len = {
             let mut unsub = UnsubscriptionPacket::<'b, 1, MAX_PROPERTIES>::new();
             unsub.packet_identifier = identifier;
-            unsub.add_new_filter(topic_name);
+            unsub.add_new_filter(topic_name, SubOptions::default());
             unsub.encode(self.buffer, self.buffer_len)
         };
 
@@ -285,7 +288,7 @@ where
         Ok(identifier)
     }
 
-    async fn send_ping_v5<'b>(&'b mut self) -> Result<(), ReasonCode> {
+    async fn send_ping_v5(&mut self) -> Result<(), ReasonCode> {
         if self.connection.is_none() {
             return Err(ReasonCode::NetworkError);
         }
@@ -308,7 +311,7 @@ where
     /// Method allows client send PING message to the broker specified in the `ClientConfig`.
     /// If there is expectation for long running connection. Method should be executed
     /// regularly by the timer that counts down the session expiry interval.
-    pub async fn send_ping<'b>(&'b mut self) -> Result<(), ReasonCode> {
+    pub async fn send_ping(&mut self) -> Result<(), ReasonCode> {
         match self.config.mqtt_version {
             MqttVersion::MQTTv3 => Err(ReasonCode::UnsupportedProtocolVersion),
             MqttVersion::MQTTv5 => self.send_ping_v5().await,
@@ -352,7 +355,7 @@ where
                 } else if packet.connect_reason_code != 0x00 {
                     Err(ReasonCode::from(packet.connect_reason_code))
                 } else {
-                    Ok(Event::Connack)
+                    Ok(Event::Connack(packet.connect_ack_flags))
                 }
             }
             PacketType::Puback => {
@@ -500,11 +503,11 @@ where
 }
 
 #[cfg(not(feature = "tls"))]
-async fn receive_packet<'c, T: Read + Write>(
+async fn receive_packet<T: Read + Write>(
     buffer: &mut [u8],
     buffer_len: usize,
     recv_buffer: &mut [u8],
-    conn: &'c mut NetworkConnection<T>,
+    conn: &mut NetworkConnection<T>,
 ) -> Result<usize, ReasonCode> {
     use crate::utils::buffer_writer::RemLenError;
 
