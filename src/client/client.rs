@@ -28,7 +28,7 @@ use heapless::Vec;
 use rand_core::RngCore;
 
 use crate::client::client_config::ClientConfig;
-use crate::packet::v5::publish_packet::QualityOfService::{self, QoS1};
+use crate::packet::v5::publish_packet::QualityOfService::{self, QoS0, QoS1, QoS2, INVALID};
 use crate::packet::v5::reason_codes::ReasonCode;
 
 use super::raw_client::{Event, RawMqttClient};
@@ -100,29 +100,38 @@ where
         qos: QualityOfService,
         retain: bool,
     ) -> Result<(), ReasonCode> {
+        if qos == INVALID {
+            return Err(ReasonCode::QoSNotSupported);
+        }
+
         let identifier = self
             .raw
             .send_message(topic_name, message, qos, retain)
             .await?;
 
-        // QoS1
-        if qos == QoS1 {
-            match self.raw.poll::<0>().await? {
-                Event::Puback(ack_identifier, matching_subscriber) => {
-                    if !matching_subscriber {
-                        Err(ReasonCode::NoMatchingSubscribers)
-                    } else if identifier == ack_identifier {
-                        Ok(())
-                    } else {
-                        Err(ReasonCode::PacketIdentifierNotFound)
+        match qos {
+            QoS0 => Ok(()),
+            QoS1 => {
+                match self.raw.poll::<0>().await? {
+                    // TODO add timeout if no Puback received
+                    Event::Puback(ack_identifier, matching_subscriber) => {
+                        if !matching_subscriber {
+                            Err(ReasonCode::NoMatchingSubscribers)
+                        } else if identifier == ack_identifier {
+                            Ok(())
+                        } else {
+                            Err(ReasonCode::PacketIdentifierNotFound)
+                        }
                     }
+                    Event::Disconnect(reason) => Err(reason),
+                    // If an application message comes at this moment, it is lost.
+                    _ => Err(ReasonCode::ImplementationSpecificError),
                 }
-                Event::Disconnect(reason) => Err(reason),
-                // If an application message comes at this moment, it is lost.
-                _ => Err(ReasonCode::ImplementationSpecificError),
             }
-        } else {
-            Ok(())
+            QoS2 => {
+                todo!()
+            }
+            _ => unreachable!(),
         }
     }
 
