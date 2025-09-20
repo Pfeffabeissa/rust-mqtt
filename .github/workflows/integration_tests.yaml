@@ -7,8 +7,8 @@ jobs:
     name: Integration tests with mosquitto
     runs-on: ubuntu-latest
     steps:
-      - name: Git checkout
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
@@ -32,8 +32,8 @@ jobs:
     name: Integration tests with HiveMQ
     runs-on: ubuntu-latest
     steps:
-      - name: Git checkout
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
