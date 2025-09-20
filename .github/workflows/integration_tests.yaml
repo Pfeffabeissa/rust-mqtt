@@ -4,7 +4,7 @@ name: IntegrationTests
 
 jobs:
   integration_tests_mosquitto:
-    name: Integration tests with mosquitto
+    name: Integration tests with Mosquitto
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -29,7 +29,7 @@ jobs:
           mosquitto_passwd -U .ci/mqtt_pass_hashed.txt
           mosquitto -c .ci/mosquitto.conf -d
 
-      - name: Run integration-tests tests
+      - name: Run integration tests
         run: RUST_LOG=trace cargo test integration
 
   integration_tests_hive:
@@ -56,5 +56,5 @@ jobs:
           cp .ci/hive_extension_config.xml hivemq-ce-2021.3/extensions/hivemq-file-rbac-extension/extension-config.xml
           hivemq-ce-2021.3/bin/run.sh &
 
-      - name: Run integration-tests tests
+      - name: Run integration tests
         run: RUST_LOG=trace cargo test integration
